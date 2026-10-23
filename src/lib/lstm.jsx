@@ -1,5 +1,15 @@
 import { createContext, useContext, useRef, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-wasm';
+import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
+
+setWasmPaths(new URL('./tfjs/', document.baseURI).href);
+// Small recurrent nets train fastest on WebAssembly (SIMD); fall back to WebGL, then plain JS
+export const BACKENDS = ['wasm', 'webgl', 'cpu'];
+export async function pickBackend(name) {
+  for (const b of [name, ...BACKENDS.filter((x) => x !== name)]) { try { if (await tf.setBackend(b)) { await tf.ready(); return tf.getBackend(); } } catch { /* try next */ } }
+  return tf.getBackend();
+}
 import { SAMPLES, generate, metrics, sma } from './data.js';
 import { usePersist } from '../core/context.jsx';
 import { uid } from '../core/store.js';
@@ -12,6 +22,7 @@ export function LabProvider({ children }) {
   const [custom, setCustom] = useState(null);
   const [hp, setHp] = usePersist('hp2', { window: 20, units: 32, layers: 1, epochs: 15, lr: 0.004, split: 0.85, dropout: 0.05 });
   const [status, setStatus] = useState('idle'); // idle | training | done
+  const [backend, setBackend] = usePersist('backend', 'wasm'); const [active, setActive] = useState('');
   const [history, setHistory] = useState([]);
   const [result, setResult] = useState(null);
   const [runs, setRuns] = usePersist('runs', []);
@@ -21,7 +32,7 @@ export function LabProvider({ children }) {
 
   async function train() {
     setStatus('training'); setHistory([]); setResult(null); stopFlag.current = false;
-    await tf.ready();
+    setActive(await pickBackend(backend));
     const closes = series.map((d) => d.close); const W = hp.window; const nTrain = Math.floor(closes.length * hp.split);
     const tr = closes.slice(0, nTrain); const mn = Math.min(...tr), mx = Math.max(...tr); const sc = (v) => (v - mn) / (mx - mn); const inv = (v) => v * (mx - mn) + mn;
     scaler.current = { mn, mx };
@@ -36,8 +47,8 @@ export function LabProvider({ children }) {
     m.compile({ optimizer: tf.train.adam(hp.lr), loss: 'meanSquaredError' });
     model.current = m; const t0 = performance.now();
     await new Promise((r) => setTimeout(r, 30));
-    await m.fit(xs, ys, { epochs: hp.epochs, batchSize: 64, validationSplit: 0.1, shuffle: true,
-      callbacks: { onBatchEnd: async () => { await new Promise((r) => setTimeout(r, 0)); }, onEpochEnd: async (ep, logs) => { setHistory((h) => [...h, { epoch: ep + 1, loss: logs.loss, val: logs.val_loss, t: (performance.now() - t0) / 1000 }]); if (stopFlag.current) m.stopTraining = true; } } });
+    await m.fit(xs, ys, { epochs: hp.epochs, batchSize: 64, validationSplit: 0.1, shuffle: true, yieldEvery: 'never',
+      callbacks: { onEpochEnd: async (ep, logs) => { setHistory((h) => [...h, { epoch: ep + 1, loss: logs.loss, val: logs.val_loss, t: (performance.now() - t0) / 1000 }]); if (stopFlag.current) m.stopTraining = true; await new Promise((r) => setTimeout(r, 0)); } } });
     xs.dispose(); ys.dispose();
     // evaluate on the held-out tail
     const xt = tf.tensor3d(X.slice(cut)); const pt = m.predict(xt); const pred = Array.from(await pt.data()).map(inv); xt.dispose(); pt.dispose();
@@ -49,7 +60,7 @@ export function LabProvider({ children }) {
     const res = {
       dates, actual, pred, train: closes.slice(0, nTrain), trainDates: series.slice(0, nTrain).map((d) => d.date),
       m: { lstm: metrics(actual, pred, prev), naive: metrics(actual, naive, prev), sma5: metrics(actual, s5, prev), linear: metrics(actual, lin, prev) },
-      params: m.countParams(), seconds: (performance.now() - t0) / 1000, resid: Math.sqrt(actual.reduce((a, v, i) => a + (pred[i] - v) ** 2, 0) / actual.length),
+      params: m.countParams(), backend: tf.getBackend(), seconds: (performance.now() - t0) / 1000, resid: Math.sqrt(actual.reduce((a, v, i) => a + (pred[i] - v) ** 2, 0) / actual.length),
     };
     setResult(res); setStatus('done');
     setRuns((r) => [{ id: uid(), at: Date.now(), ds: dsName, hp: { ...hp }, rmse: res.m.lstm.rmse, mape: res.m.lstm.mape, dir: res.m.lstm.dir, params: res.params, seconds: res.seconds }, ...r].slice(0, 30));
@@ -62,5 +73,5 @@ export function LabProvider({ children }) {
     return out;
   }
 
-  return <Ctx.Provider value={{ dsId, setDsId, custom, setCustom, hp, setHp, status, history, result, runs, setRuns, series, dsName, train, stop: () => { stopFlag.current = true; }, forecast }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ backend, setBackend, active, dsId, setDsId, custom, setCustom, hp, setHp, status, history, result, runs, setRuns, series, dsName, train, stop: () => { stopFlag.current = true; }, forecast }}>{children}</Ctx.Provider>;
 }

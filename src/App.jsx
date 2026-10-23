@@ -19,7 +19,7 @@ export default createApp({
   heroTitle: 'Train an LSTM on stock prices — in your browser, in seconds.',
   heroText: 'A deep-learning lab for time series: tune hyper-parameters, watch loss curves live, benchmark against baselines and forecast with uncertainty bands.',
   heroFeatures: [
-    [Cpu, 'GPU training via TensorFlow.js', 'Stacked LSTM, dropout, Adam — no server needed'],
+    [Cpu, 'Fast in-browser training', 'TensorFlow.js on WebAssembly SIMD or WebGL — no server'],
     [Gauge, 'Honest evaluation', 'Hold-out test, RMSE, MAPE, direction accuracy, baselines'],
     [Upload, 'Bring your own data', 'Upload any Date/Close CSV from NSE or Yahoo'],
   ],
@@ -28,10 +28,10 @@ export default createApp({
   roles: ['Data scientist', 'Student', 'Trader', 'Researcher', 'Educator'],
   demo: { name: 'Bharath Kumar', email: 'demo@stocksage.app', password: 'Demo@1234', role: 'Data scientist' },
   promo: ['⚡ Pro tip', 'Start with window 20, 1×32 units, 15 epochs.'],
-  notifications: [[Zap, 'WebGL backend ready', 'Training runs on your GPU'], [Brain, 'New: experiment tracker', 'Compare every run side by side'], [Bell, 'Upload real data', 'Date + Close CSV supported']],
+  notifications: [[Zap, 'WebAssembly backend ready', '≈15 s to train the default LSTM'], [Brain, 'New: experiment tracker', 'Compare every run side by side'], [Bell, 'Upload real data', 'Date + Close CSV supported']],
   nav: [
     { section: 'Deep learning lab', items: [
-      { to: '/', label: 'Training studio', icon: FlaskConical, page: Studio, tag: 'GPU' },
+      { to: '/', label: 'Training studio', icon: FlaskConical, page: Studio, tag: 'WASM' },
       { to: '/forecast', label: 'Forecast', icon: Telescope, page: Forecast },
       { to: '/runs', label: 'Experiments', icon: BarChart3, page: Runs },
     ] },

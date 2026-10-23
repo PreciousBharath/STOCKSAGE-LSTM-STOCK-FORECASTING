@@ -34,7 +34,7 @@ export default function HowItWorks() {
       </div>
       <div className="grid g3 mt16 stagger">
         {[['1. Windowing', 'Each training sample is the previous N closing prices; the label is the next close. Data is scaled with min/max from the training period only (no look-ahead leakage).'],
-          ['2. Training in the browser', 'TensorFlow.js runs the LSTM on your GPU via WebGL. Loss curves stream live after every epoch, and you can stop training at any time.'],
+          ['2. Training in the browser', 'TensorFlow.js runs the LSTM on a WebAssembly SIMD backend (or WebGL / plain JS). Loss curves stream live after every epoch, and you can stop training at any time.'],
           ['3. Honest evaluation', 'The last part of the series is never seen during training. We compare against naïve, moving-average and linear-trend baselines and report direction accuracy.']].map(([t, d]) => (
           <Card key={t} title={t}><p className="small muted">{d}</p></Card>))}
       </div>

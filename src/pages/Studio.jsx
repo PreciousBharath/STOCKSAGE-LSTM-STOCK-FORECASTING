@@ -27,6 +27,7 @@ export default function Studio() {
           <label className="field"><span>Dataset</span><select className="input" value={L.dsId} disabled={busy} onChange={(e) => L.setDsId(e.target.value)}>
             {SAMPLES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}{L.custom && <option value="CUSTOM">📁 {L.custom.name} (uploaded)</option>}</select></label>
           <div className="small faint mb12">{L.series.length} trading days · {L.series[0].date} → {L.series[L.series.length - 1].date}. Upload a CSV with Date & Close columns (e.g. exported from NSE/Yahoo) to train on real data.</div>
+          <label className="field"><span>Compute backend</span><div className="row wrap" style={{ gap: 6 }}>{[['wasm', 'WebAssembly (fastest)'], ['webgl', 'WebGL GPU'], ['cpu', 'Plain JS']].map(([k, l]) => <button key={k} type="button" disabled={busy} className={`chip ${L.backend === k ? 'on' : ''}`} onClick={() => L.setBackend(k)}>{l}</button>)}</div></label>
           <Slider label="Look-back window" value={L.hp.window} min={10} max={60} unit=" days" onChange={set('window')} />
           <Slider label="LSTM units per layer" value={L.hp.units} min={8} max={96} step={8} onChange={set('units')} />
           <Slider label="Stacked LSTM layers" value={L.hp.layers} min={1} max={3} onChange={set('layers')} />
@@ -36,7 +37,7 @@ export default function Studio() {
           <Slider label="Train split" value={L.hp.split} min={0.6} max={0.92} step={0.01} fmt={(v) => Math.round(v * 100) + '%'} onChange={set('split')} />
         </Card>
         <div className="grid" style={{ gap: 18, alignContent: 'start' }}>
-          <Card title="Training progress" sub={busy ? `Epoch ${L.history.length}/${L.hp.epochs} · ETA ${eta.toFixed(0)}s` : L.status === 'done' ? `Finished in ${R.seconds.toFixed(1)}s · ${R.params.toLocaleString()} parameters` : 'Press “Train model” to start'}
+          <Card title="Training progress" sub={busy ? `Epoch ${L.history.length}/${L.hp.epochs}${L.active ? ' on ' + L.active : ''}${L.history.length ? ' · ETA ' + eta.toFixed(0) + 's' : ' · warming up…'}` : L.status === 'done' ? `Finished in ${R.seconds.toFixed(1)}s on ${R.backend} · ${R.params.toLocaleString()} parameters` : 'Press “Train model” to start'}
             action={busy ? <Badge kind="info"><span className="spinner" style={{ width: 12, height: 12 }} /> training</Badge> : L.status === 'done' ? <Badge kind="ok">trained</Badge> : <Badge kind="mute">idle</Badge>}>
             <div className="progress mb16"><i style={{ width: pct + '%' }} /></div>
             <div style={{ height: 230 }}><ResponsiveContainer><LineChart data={L.history} margin={{ left: -6 }}>
